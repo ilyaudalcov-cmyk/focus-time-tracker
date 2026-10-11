@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f7f4">
+  <meta name="description" content="Таймер фокусной работы с учётом проектов и экспортом в Excel.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <title>Фокус — учёт времени</title>
+  <style>
+    :root{color-scheme:light;--ink:#172923;--muted:#68756e;--line:#dfe6df;--paper:#fff;--bg:#f2f5f0;--green:#18744f;--green2:#e4f2e9;--amber:#a15b15;--shadow:0 16px 48px #163c2610}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
+    .shell{max-width:680px;margin:0 auto;padding:24px 0 36px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}.brand{font-size:14px;font-weight:750;letter-spacing:.12em;text-transform:uppercase;color:var(--green)}.offline{font-size:12px;color:var(--muted)}
+    h1{font-size:clamp(28px,7vw,40px);line-height:1.05;letter-spacing:-.04em;margin:0 0 8px}.sub{margin:0;color:var(--muted)}.card{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:22px;margin-top:20px;box-shadow:var(--shadow)}
+    label{display:block;font-size:13px;font-weight:650;margin:14px 0 7px}input,select,textarea{font:inherit;color:var(--ink);width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:#fff;outline:none}input:focus,select:focus,textarea:focus{border-color:#6ab08c;box-shadow:0 0 0 3px #18744f15}textarea{min-height:70px;resize:vertical}.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+    .timer{margin:22px 0 8px;text-align:center}.mode{font-size:13px;color:var(--muted);font-weight:650;letter-spacing:.08em;text-transform:uppercase}.clock{font-size:clamp(68px,18vw,108px);letter-spacing:-.075em;font-variant-numeric:tabular-nums;font-weight:760;line-height:1.12;margin:4px 0}.totals{font-size:14px;color:var(--muted)}
+    .actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px}button{font:inherit;font-weight:700;border:0;border-radius:13px;padding:13px 18px;min-height:48px;cursor:pointer;background:var(--green);color:#fff}button.secondary{color:var(--ink);background:#edf1ed}button.outline{color:var(--green);background:#fff;border:1px solid #a9c9b6}button:disabled{opacity:.42;cursor:not-allowed}.hint{min-height:22px;margin:14px 0 0;text-align:center;color:var(--muted);font-size:13px}
+    .section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}.section-title h2{font-size:19px;margin:0}.count{font-size:13px;color:var(--muted)}.list{margin-top:14px;display:grid;gap:9px}.item{border:1px solid var(--line);border-radius:13px;padding:12px 13px;display:flex;justify-content:space-between;gap:14px;font-size:13px}.item strong{display:block;font-size:14px}.item small{color:var(--muted)}.duration{white-space:nowrap;font-weight:700}.foot{font-size:12px;color:var(--muted);margin:18px 4px 0}.toast{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));margin:auto;max-width:500px;background:#172923;color:#fff;padding:13px 16px;border-radius:13px;opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:none}
+    @media(max-width:480px){body{padding-left:12px;padding-right:12px}.card{padding:17px;border-radius:18px}.grid{grid-template-columns:1fr}.actions button{flex:1 1 42%}.actions button.primary{flex-basis:100%}}
+  </style>
+</head>
+<body>
+<main class="shell">
+  <div class="top"><div class="brand">Фокус · учёт времени</div><div class="offline" id="network">Подключение…</div></div>
+  <h1>Спокойно<br>делайте важное.</h1><p class="sub">Запустите таймер — сессия сохранится на этом устройстве.</p>
+  <section class="card" aria-label="Рабочая сессия">
+    <div class="grid">
+      <div><label for="client">Клиент *</label><input id="client" autocomplete="organization" placeholder="Название компании"></div>
+      <div><label for="project">ID проекта</label><input id="project" placeholder="Например, PRJ-024"></div>
+    </div>
+    <label for="task">Задача *</label><input id="task" placeholder="Например, дизайн раздела о компании">
+    <div class="grid">
+      <div><label for="stage">Этап *</label><select id="stage"></select></div>
+      <div><label for="work-min">Работа, минут</label><input id="work-min" type="number" min="1" max="180" value="25" inputmode="numeric"></div>
+    </div>
+    <label for="note">Комментарий</label><textarea id="note" placeholder="Необязательно"></textarea>
+    <div class="timer"><div class="mode" id="mode">Таймер готов</div><div class="clock" id="clock" aria-live="polite">25:00</div><div class="totals" id="totals">Фокус: 0 мин · циклов: 0</div></div>
+    <div class="actions"><button id="start" class="primary">Начать фокус</button><button id="pause" class="secondary" disabled>Пауза</button><button id="resume" class="secondary" disabled>Продолжить</button><button id="stop" class="outline" disabled>Завершить</button></div>
+    <p class="hint" id="hint">Перерывы не включаются в фокусное время.</p>
+  </section>
+  <section class="card">
+    <div class="section-title"><h2>Сессии на этом устройстве</h2><span class="count" id="count">0 записей</span></div>
+    <div class="actions" style="justify-content:flex-start"><button id="export" class="outline" disabled>Скачать CSV для Excel</button><button id="backup" class="secondary">Резервная копия</button><button id="clear" class="secondary">Очистить</button></div>
+    <div class="list" id="list"></div>
+    <p class="foot">Данные хранятся только в браузере этого телефона. Экспортируйте CSV и перенесите его в книгу «Трудозатраты.xlsx». Ссылка на сайт сама по себе не синхронизирует данные между устройствами.</p>
+  </section>
+  <p class="foot">Подсказка: в Safari нажмите «Поделиться» → «На экран Домой». В Chrome на Android откройте меню ⋮ → «Установить приложение» или «Добавить на главный экран».</p>
+</main><div class="toast" id="toast" role="status"></div>
+<script>
+(()=>{
+  const stages=['Коммуникация и бриф','Анализ и референсы','Структура и тексты','Концепция','Дизайн и вёрстка','Правки','Подготовка и передача файлов','Прочее'];
+  const $=id=>document.getElementById(id), storeKey='focusTimer.sessions.v1', stateKey='focusTimer.state.v1';
+  const stage=$('stage'); stages.forEach((s,i)=>{const o=document.createElement('option');o.value=s;o.textContent=s;stage.append(o);if(i===0)o.selected=true});
+  let sessions=read(storeKey,[]), state=read(stateKey,{mode:'idle',seconds:0,focus:0,cycles:0,deadline:0,segment:0,phase:0,started:null,form:null});let toastTimer;
+  function read(k,fallback){try{return JSON.parse(localStorage.getItem(k))??fallback}catch{return fallback}}function save(){localStorage.setItem(storeKey,JSON.stringify(sessions));localStorage.setItem(stateKey,JSON.stringify(state))}
+  function say(m){$('hint').textContent=m}function toast(m){$('toast').textContent=m;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2500)}
+  function formData(){return{client:$('client').value.trim(),project:$('project').value.trim(),task:$('task').value.trim(),stage:stage.value,note:$('note').value.trim(),workMin:Math.min(180,Math.max(1,Number($('work-min').value)||25))}}
+  function restoreForm(){if(!state.form)return;for(const [id,key] of [['client','client'],['project','project'],['task','task'],['note','note'],['work-min','workMin']])if(state.form[key]!=null)$(id).value=state.form[key];if(state.form.stage)stage.value=state.form.stage}
+  function clock(sec){sec=Math.max(0,Math.ceil(sec));return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')}
+  function display(){const active=['work','break','paused'].includes(state.mode);$('mode').textContent=state.mode==='work'?'Фокусная работа':state.mode==='break'?(state.phase===2?'Длинный перерыв':'Короткий перерыв'):state.mode==='paused'?'Пауза':state.mode==='stopped'?'Сессия завершена':'Таймер готов';$('clock').textContent=active?clock(state.mode==='paused'?state.seconds:state.deadline-Date.now()/1000):state.mode==='stopped'?'ГОТОВО':clock(formData().workMin*60);$('totals').textContent=`Фокус: ${Math.floor(state.focus/60)} мин · циклов: ${state.cycles}`;$('start').disabled=active;$('pause').disabled=!['work','break'].includes(state.mode);$('resume').disabled=state.mode!=='paused';$('stop').disabled=!active;for(const id of ['client','project','task','stage','note','work-min'])$(id).disabled=active}
+  function transition(){const now=Date.now()/1000;if(state.mode==='work'){state.focus+=Math.max(0,Math.min(state.form.workMin*60,now-(state.segment||now)));state.cycles++;state.phase=state.cycles%4===0?2:1;state.mode='break';state.seconds=(state.phase===2?15:5)*60;state.deadline=now+state.seconds;state.segment=0;say(state.phase===2?'Рабочие циклы завершены. Время длинного отдыха.':'Цикл завершён. Время короткого отдыха.');if('vibrate'in navigator)navigator.vibrate([180,90,180])}else if(state.mode==='break'){state.mode='work';state.seconds=state.form.workMin*60;state.deadline=now+state.seconds;state.segment=now;say('Перерыв окончен. Начался новый рабочий интервал.');if('vibrate'in navigator)navigator.vibrate(180)}save()}
+  function tick(){if(['work','break'].includes(state.mode)){let now=Date.now()/1000;let guard=0;while(now>=state.deadline&&guard++<20){state.seconds=Math.max(0,state.deadline-(state.deadline-(state.mode==='work'?state.form.workMin*60:state.seconds)));transition();now=Date.now()/1000}state.seconds=Math.max(0,state.deadline-now);if(state.mode==='work')state.seconds=Math.max(0,state.deadline-now);save()}display()}
+  function render(){ $('count').textContent=`${sessions.length} ${sessions.length===1?'запись':'записей'}`;$('export').disabled=!sessions.length;$('list').replaceChildren();sessions.slice().reverse().slice(0,8).forEach(r=>{const el=document.createElement('div');el.className='item';const left=document.createElement('div'),strong=document.createElement('strong'),small=document.createElement('small'),right=document.createElement('div');strong.textContent=r.client+' · '+r.task;small.textContent=`${r.date} · ${r.stage}${r.project?' · '+r.project:''}`;right.className='duration';right.textContent=`${Math.round(r.focusSeconds/60)} мин`;left.append(strong,small);el.append(left,right);$('list').append(el)});}
+  $('start').onclick=()=>{const f=formData();if(!f.client||!f.task){toast('Укажите клиента и задачу.');return}state={mode:'work',seconds:f.workMin*60,focus:0,cycles:0,deadline:Date.now()/1000+f.workMin*60,segment:Date.now()/1000,phase:0,started:new Date().toISOString(),form:f};save();say('Рабочий интервал начат. Уведомления браузера могут быть ограничены в фоне.');tick()};
+  $('pause').onclick=()=>{const now=Date.now()/1000;if(state.mode==='work')state.focus+=Math.max(0,now-state.segment);state.seconds=Math.max(0,state.deadline-now);state.mode='paused';state.resumeMode=state.phase?'break':'work';save();say('Таймер на паузе.')};
+  $('resume').onclick=()=>{state.mode=state.resumeMode||'work';state.deadline=Date.now()/1000+state.seconds;if(state.mode==='work')state.segment=Date.now()/1000;save();say('Таймер продолжен.')};
+  $('stop').onclick=()=>{const now=Date.now()/1000;if(state.mode==='work')state.focus+=Math.max(0,Math.min(state.form.workMin*60,now-state.segment));if(state.focus<1){state.mode='stopped';say('Фокусное время меньше минуты; запись не создана.');save();tick();return}const start=new Date(state.started),end=new Date();sessions.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),client:state.form.client,project:state.form.project,task:state.form.task,stage:state.form.stage,note:state.form.note,focusSeconds:Math.round(state.focus),start:state.started,end:end.toISOString(),date:start.toLocaleDateString('sv-SE')});state.mode='stopped';save();say('Сессия сохранена на этом устройстве. Скачайте CSV для переноса в Excel.');render();tick()};
+  function csv(){const head=['Клиент / контакт','ID проекта','Дата','Начало','Конец','Фокус-время','Этап','Работы / задача','Комментарий'];const rows=sessions.map(r=>[r.client,r.project,r.date,new Date(r.start).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}),new Date(r.end).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}),`${Math.floor(r.focusSeconds/3600)}:${String(Math.floor(r.focusSeconds%3600/60)).padStart(2,'0')}`,r.stage,r.task,r.note]);const esc=v=>'"'+String(v??'').replaceAll('"','""')+'"';return '\ufeff'+[head,...rows].map(row=>row.map(esc).join(';')).join('\r\n')}
+  $('export').onclick=()=>{const blob=new Blob([csv()],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Трудозатраты-мобильный-экспорт.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('CSV скачан. Импортируйте строки в лист «Журнал» Excel.')};
+  $('backup').onclick=()=>{const blob=new Blob([JSON.stringify(sessions,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='резервная-копия-сессий.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+  $('clear').onclick=()=>{if(sessions.length&&confirm('Удалить все сохранённые на этом устройстве сессии? Сначала скачайте CSV или резервную копию.')){sessions=[];save();render();toast('Локальные записи удалены.')}};
+  for(const id of ['client','project','task','note','work-min'])$(id).addEventListener('input',display);$('work-min').addEventListener('change',()=>{const v=Math.min(180,Math.max(1,Number($('work-min').value)||25));$('work-min').value=v;display()});
+  function net(){ $('network').textContent=navigator.onLine?'Готов к работе':'Офлайн · данные сохранены' }addEventListener('online',net);addEventListener('offline',net);document.addEventListener('visibilitychange',tick);net();restoreForm();render();setInterval(tick,1000);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});tick();
+})();
+</script>
+</body>
+</html>

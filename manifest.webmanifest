@@ -1,0 +1,13 @@
+{
+  "id": "./",
+  "name": "Фокус — учёт времени",
+  "short_name": "Фокус",
+  "description": "Таймер фокусной работы с учётом проектов",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f5f0",
+  "theme_color": "#f6f7f4",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
